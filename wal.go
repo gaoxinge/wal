@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -254,7 +255,7 @@ func (l *Log) load() error {
 	if err != nil {
 		return err
 	}
-	if _, err := l.sfile.Seek(0, 2); err != nil {
+	if _, err := l.sfile.Seek(0, io.SeekEnd); err != nil {
 		return err
 	}
 	// Load the last segment entries
@@ -525,7 +526,7 @@ func (l *Log) loadSegmentEntries(s *segment) error {
 	ebuf := data
 	var epos []bpos
 	var pos int
-	for exidx := s.index; len(data) > 0; exidx++ {
+	for len(data) > 0 {
 		var n int
 		if l.opts.LogFormat == JSON {
 			n, err = loadNextJSONEntry(data)
@@ -673,6 +674,7 @@ func (l *Log) ClearCache() error {
 	l.clearCache()
 	return nil
 }
+
 func (l *Log) clearCache() {
 	l.scache.Range(func(_, v interface{}) bool {
 		s := v.(*segment)
@@ -697,6 +699,7 @@ func (l *Log) TruncateFront(index uint64) error {
 	}
 	return l.truncateFront(index)
 }
+
 func (l *Log) truncateFront(index uint64) (err error) {
 	if index == 0 || l.lastIndex == 0 ||
 		index < l.firstIndex || index > l.lastIndex {
@@ -736,7 +739,7 @@ func (l *Log) truncateFront(index uint64) (err error) {
 		return err
 	}
 	// The log was truncated but still needs some file cleanup. Any errors
-	// following this message will not cause an on-disk data ocorruption, but
+	// following this message will not cause an on-disk data corruption, but
 	// may cause an inconsistency with the current program, so we'll return
 	// ErrCorrupt so the the user can attempt a recover by calling Close()
 	// followed by Open().
@@ -771,7 +774,7 @@ func (l *Log) truncateFront(index uint64) (err error) {
 			return err
 		}
 		var n int64
-		if n, err = l.sfile.Seek(0, 2); err != nil {
+		if n, err = l.sfile.Seek(0, io.SeekEnd); err != nil {
 			return err
 		}
 		if n != int64(len(ebuf)) {
@@ -842,7 +845,7 @@ func (l *Log) truncateBack(index uint64) (err error) {
 		return err
 	}
 	// The log was truncated but still needs some file cleanup. Any errors
-	// following this message will not cause an on-disk data ocorruption, but
+	// following this message will not cause an on-disk data corruption, but
 	// may cause an inconsistency with the current program, so we'll return
 	// ErrCorrupt so the the user can attempt a recover by calling Close()
 	// followed by Open().
@@ -873,7 +876,7 @@ func (l *Log) truncateBack(index uint64) (err error) {
 		return err
 	}
 	var n int64
-	n, err = l.sfile.Seek(0, 2)
+	n, err = l.sfile.Seek(0, io.SeekEnd)
 	if err != nil {
 		return err
 	}
